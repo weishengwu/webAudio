@@ -11,9 +11,11 @@ import {Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
 import axios from 'axios'
 const cheerio = require('react-native-cheerio')
-import Tts from 'react-native-tts'
 
-const BUFFER_SIZE = 3500
+import ToastExample from './ToastExample'
+import tts from './Tts'
+
+let BUFFER_SIZE = 4000;
 
 const instructions = Platform.select({
   ios: 'Press Cmd+R to reload,\n' + 'Cmd+D or shake for dev menu',
@@ -28,21 +30,64 @@ export default class App extends Component<Props> {
     super(props)
 
     this.state = {
-      speechRate: 0.5,
-      speechPitch: 1,
+      utteranceID: 'ttsID',
       html: '',
       htmlSlices: [],
       currentHtmlSlice: 0
     }
   }
 
-  setSpeechRate = async rate => {
-    await Tts.setDefaultRate(rate)
-    this.setState({ speachRate: rate})
+  getMaxSpeechInputLength = () => {
+    tts.getMaxSpeechInputLength()
+    .then((len) => {
+      BUFFER_SIZE = len
+      console.log(len)
+      })
   }
-  setSpeechPitch = async pitch => {
-    await Tts.setDefaultPitch(pitch)
-    this.setState({ speechPitch: pitch })
+  initTts = () => {
+    tts.init('Awesome', tts.SHORT)
+    .then((res) => {
+      console.log(res, " Success")
+      tts.getMaxSpeechInputLength()
+      .then((len) => {
+        BUFFER_SIZE = len;
+        console.log(BUFFER_SIZE)
+        })
+      })
+    .catch((e) => {
+      console.log("Error: ",e)
+      })
+  }
+  synthesizeToFile = () => {
+    let htmlSlices = this.state.htmlSlices
+    let currentHtmlSlice = this.state.currentHtmlSlice
+
+    tts.synthesizeToFile(htmlSlices[currentHtmlSlice], "tts-demo", "tts-demo")
+    .then((res) => {
+      console.log("App.js Synthesis successs! ", res)
+      })
+    .catch((e) => {
+      console.log("App.js Fail: ", e)
+      })
+  }
+
+  play = () => {
+    tts.play()
+  }
+  pause = () => {
+    tts.pause()
+  }
+  stop = () => {
+    tts.stop()
+  }
+  speak = () => {
+    let htmlSlices = this.state.htmlSlices
+    let currentHtmlSlice = this.state.currentHtmlSlice
+    console.log(htmlSlices[currentHtmlSlice])
+    tts.speak(htmlSlices[currentHtmlSlice])
+  }
+  shutdown = () => {
+    tts.shutdown()
   }
 
   onGetHTML = () => {
@@ -67,6 +112,7 @@ export default class App extends Component<Props> {
     const html = $('p').text()
     this.setState(() => ({ html }))
 
+    console.log(html)
 
     console.log('out')
   }
@@ -83,6 +129,7 @@ export default class App extends Component<Props> {
       textSlice = html.substr(pos-BUFFER_SIZE, pos)
       textSlice = textSlice.substr(0, Math.min(textSlice.length, textSlice.lastIndexOf(" ")))
 
+      console.log(textSlice)
       htmlSlices.push(textSlice)
       pos += textSlice.length
     }
@@ -94,44 +141,33 @@ export default class App extends Component<Props> {
     console.log('Splitting html out');
   }
 
-
-
-  onText2Speech = () => {
-    console.log('Text to speech1');
-
-    let htmlSlices = this.state.htmlSlices
-    let currentHtmlSlice = this.state.currentHtmlSlice
-
-    Tts.speak('Hello, hi');
-
-    // Tts.getInitStatus().then(() => {
-    //   console.log('init');
-    // });
-
-    Tts.speak(htmlSlices[currentHtmlSlice])
-    // let words = htmlSlices[currentHtmlSlice].split(' ')
-    // words = words.map(w => w.trim())
-    // words.forEach((e) => {Tts.speak(e)})
-
-    console.log('Awaiting speaking')
-  }
-
-  onStopReading = () => {
-    console.log('Stop reading')
-    Tts.stop()
-
-    console.log('Stop reading out')
-  }
-  onResumeReading = () => {
-    console.log('Resume reading')
-
-    console.log('Resume reading out')
-  }
-
   render() {
     return (
       <View style={styles.container}>
-
+        <TouchableOpacity onPress={this.initTts} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Init tts</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.synthesizeToFile} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Synthesize</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.play} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Play</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.pause} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Pause</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.stop} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Stop</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.getMaxSpeechInputLength} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Get len</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.speak} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Speak</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.shutdown} style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>Shutdown</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={this.onGetHTML} style={styles.helpLink}>
           <Text style={styles.helpLinkText}>Get HTML</Text>
         </TouchableOpacity>
@@ -139,16 +175,7 @@ export default class App extends Component<Props> {
           <Text style={styles.helpLinkText}>Parse html</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={this.splitHTML} style={styles.helpLink}>
-          <Text style={styles.helpLinkText}>Spllit HTML</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={this.onText2Speech} style={styles.helpLink}>
-          <Text style={styles.helpLinkText}>Text to Speech</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={this.onStopReading} style={styles.helpLink}>
-          <Text style={styles.helpLinkText}>Stop Reading</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={this.onResumeReading} style={styles.helpLink}>
-          <Text style={styles.helpLinkText}>Resume Reading</Text>
+          <Text style={styles.helpLinkText}>Split HTML</Text>
         </TouchableOpacity>
 
         <Text style={styles.welcome}>Welcome to React Native!</Text>
